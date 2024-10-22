@@ -1,95 +1,74 @@
-import Image from "next/image";
-import styles from "./page.module.css";
+'use client'
 
-export default function Home() {
+import React from 'react';
+import { useForm, Controller } from 'react-hook-form';
+import { doc, getDoc, setDoc } from 'firebase/firestore';
+import { signInWithEmailAndPassword } from 'firebase/auth';
+import { auth, db } from '@/helpers/firebase';
+import { useCookies } from 'react-cookie';
+import { useRouter } from 'next/navigation';
+import Button from '@mui/material/Button';
+import TextField from '@mui/material/TextField';
+
+type FormData = {
+  email: string;
+  password: string;
+};
+
+const Login = () => {
+  const { control, handleSubmit, formState: { errors } } = useForm<FormData>();
+  const [, setCookie] = useCookies();
+  const router = useRouter();
+
+  const onSubmit = async (data: FormData) => {    
+    try {
+      const userCredential = await signInWithEmailAndPassword(auth, data.email, data.password) as any;
+
+      const user = userCredential.user;
+
+      const userRef = doc(db, `users/${user.uid}`);
+      const docSnap = await getDoc(userRef);
+
+      if (!docSnap.exists()) {
+        await setDoc(userRef, {
+          uid: user.uid,
+          email: user.email,
+        });
+      }
+      
+      setCookie('accessToken', user.accessToken);
+      setCookie('uid', user.uid);
+      router.push('/wiki/home');
+    } catch {
+      alert('error');
+    }
+  };
+
   return (
-    <main className={styles.main}>
-      <div className={styles.description}>
-        <p>
-          Get started by editing&nbsp;
-          <code className={styles.code}>src/app/page.tsx</code>
-        </p>
-        <div>
-          <a
-            href="https://vercel.com?utm_source=create-next-app&utm_medium=appdir-template&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            By{" "}
-            <Image
-              src="/vercel.svg"
-              alt="Vercel Logo"
-              className={styles.vercelLogo}
-              width={100}
-              height={24}
-              priority
-            />
-          </a>
-        </div>
-      </div>
-
-      <div className={styles.center}>
-        <Image
-          className={styles.logo}
-          src="/next.svg"
-          alt="Next.js Logo"
-          width={180}
-          height={37}
-          priority
+    <form onSubmit={handleSubmit(onSubmit)}>
+      <div>
+        <Controller
+          name="email"
+          control={control}
+          rules={{ required: "Email is required" }}
+          render={({ field }) => <TextField label="Email" id="email" {...field} />}
         />
+        {errors.email && <p>{errors.email.message}</p>}
       </div>
 
-      <div className={styles.grid}>
-        <a
-          href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template&utm_campaign=create-next-app"
-          className={styles.card}
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <h2>
-            Docs <span>-&gt;</span>
-          </h2>
-          <p>Find in-depth information about Next.js features and API.</p>
-        </a>
-
-        <a
-          href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template&utm_campaign=create-next-app"
-          className={styles.card}
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <h2>
-            Learn <span>-&gt;</span>
-          </h2>
-          <p>Learn about Next.js in an interactive course with&nbsp;quizzes!</p>
-        </a>
-
-        <a
-          href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template&utm_campaign=create-next-app"
-          className={styles.card}
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <h2>
-            Templates <span>-&gt;</span>
-          </h2>
-          <p>Explore starter templates for Next.js.</p>
-        </a>
-
-        <a
-          href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template&utm_campaign=create-next-app"
-          className={styles.card}
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <h2>
-            Deploy <span>-&gt;</span>
-          </h2>
-          <p>
-            Instantly deploy your Next.js site to a shareable URL with Vercel.
-          </p>
-        </a>
+      <div>
+        <Controller
+          name="password"
+          control={control}
+          rules={{ required: "Password is required" }}
+          render={({ field }) => <TextField label="password" id="password" {...field} />}
+        />
+        {errors.password && <p>{errors.password.message}</p>}
       </div>
-    </main>
+
+      <Button type="submit" variant="contained">login</Button>
+    </form>
   );
-}
+};
+
+export default Login;
